@@ -40,7 +40,7 @@ def calculate_fuel_cost(kilometers, fuel_consumption, fuel_price):
 
 def calculate_maintenance_cost(age, initial_price):
     base_percentage = 0.02  # 2% of initial price for a new car
-    age_factor = 1 + (age * 0.01)  # Increase by 1% per year
+    age_factor = 1 + (age * 0.05)  # Increase by 5% per year (modified)
     return initial_price * base_percentage * age_factor
 
 def calculate_opportunity_cost(market_value, discount_rate):
@@ -86,6 +86,10 @@ if 'inputs' not in st.session_state:
         'discount_rate': 0.10
     }
 
+# Initialize chart_key in session state
+if 'chart_key' not in st.session_state:
+    st.session_state.chart_key = 0
+
 # Create placeholders for graph and table
 graph_placeholder = st.empty()
 table_placeholder = st.empty()
@@ -113,8 +117,11 @@ def update_graph():
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     )
 
-    # Update the graph placeholder with a unique key
-    graph_placeholder.plotly_chart(fig, use_container_width=True, key="cost_projection_chart")
+    # Update the graph placeholder with a dynamic key
+    graph_placeholder.plotly_chart(fig, use_container_width=True, key=f"cost_projection_chart_{st.session_state.get('chart_key', 0)}")
+    
+    # Increment the chart key
+    st.session_state['chart_key'] = st.session_state.get('chart_key', 0) + 1
 
     # Update the data table placeholder
     table_placeholder.subheader("Projected Costs Table")
