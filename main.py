@@ -36,9 +36,7 @@ def calculate_fuel_cost(kilometers, fuel_consumption, fuel_price):
     return (kilometers * fuel_consumption / 100) * fuel_price
 
 def calculate_maintenance_cost(age, initial_price):
-    base_percentage = 0.02  # 2% of initial price for a new car
-    age_factor = 1 + (age * 0.05)  # Increase by 5% per year (modified)
-    return initial_price * base_percentage * age_factor
+    return initial_price * (0.005 + (0.015 * age / 10))
 
 def calculate_opportunity_cost(market_value, discount_rate):
     return market_value * discount_rate
@@ -180,7 +178,7 @@ st.markdown("""
 - Insurance costs are excluded in this prototype.
 - All costs are discounted to present value.
 - The opportunity cost is calculated based on the current market value of the vehicle.
-- Maintenance costs increase with the vehicle's age and are based on a percentage of the initial purchase price.
+- Maintenance costs increase linearly with the vehicle's age, from 0.5% of the initial price for a new vehicle to 2% for a 10-year-old vehicle.
 """)
 
 # Footer
