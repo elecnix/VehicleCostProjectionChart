@@ -32,18 +32,23 @@ st.write(
     "This application generates a stacked bar chart showing the projected costs of owning a single vehicle over the next 10 years."
 )
 
+
 # Functions for calculations
 def calculate_fuel_cost(kilometers, fuel_consumption, fuel_price):
     return (kilometers * fuel_consumption / 100) * fuel_price
 
+
 def calculate_maintenance_cost(age, initial_price, year_offset=0):
     return initial_price * (0.0015 * (age + year_offset) + 0.005)
+
 
 def calculate_opportunity_cost(market_value, discount_rate):
     return market_value * discount_rate
 
+
 def discount_cash_flow(cost, discount_rate, year):
     return cost / (1 + discount_rate)**year
+
 
 def generate_cost_projection(inputs):
     years = range(11)  # 0 to 10 years
@@ -53,6 +58,9 @@ def generate_cost_projection(inputs):
         current_age = inputs['current_age'] + year
         market_value = max(0, inputs['current_market_value'] *
                            (1 - 0.1)**year)  # Simple linear depreciation
+        discounted_market_value = discount_cash_flow(market_value,
+                                                     inputs['discount_rate'],
+                                                     year)
 
         fuel_cost = calculate_fuel_cost(inputs['kilometers_driven'],
                                         inputs['fuel_consumption'],
@@ -73,15 +81,18 @@ def generate_cost_projection(inputs):
 
         data.append({
             'Year': year,
-            'Fuel Cost (Actual)': fuel_cost,
+            'Fuel Cost<br> (Actual)': fuel_cost,
             'Fuel Cost (Discounted)': discounted_fuel_cost,
             'Maintenance Cost (Actual)': maintenance_cost,
             'Maintenance Cost (Discounted)': discounted_maintenance_cost,
             'Opportunity Cost (Actual)': opportunity_cost,
-            'Opportunity Cost (Discounted)': discounted_opportunity_cost
+            'Opportunity Cost (Discounted)': discounted_opportunity_cost,
+            'Market Value (Nominal)': market_value,
+            'Market Value (Discounted)': discounted_market_value
         })
 
     return pd.DataFrame(data)
+
 
 # Functions for persistent storage
 def load_inputs():
@@ -98,9 +109,11 @@ def load_inputs():
         'discount_rate': 0.10
     }
 
+
 def save_inputs(inputs):
     with open('user_inputs.json', 'w') as f:
         json.dump(inputs, f)
+
 
 # Initialize session state
 if 'inputs' not in st.session_state:
@@ -114,6 +127,7 @@ if 'chart_key' not in st.session_state:
 graph_placeholder = st.empty()
 table_placeholder = st.empty()
 
+
 # Function to update graph
 def update_graph():
     projection_data = generate_cost_projection(st.session_state.inputs)
@@ -121,7 +135,10 @@ def update_graph():
     # Create stacked bar chart
     fig = go.Figure()
 
-    for cost_type in ['Fuel Cost (Discounted)', 'Maintenance Cost (Discounted)', 'Opportunity Cost (Discounted)']:
+    for cost_type in [
+            'Fuel Cost - (Discounted)', 'Maintenance Cost - (Discounted)',
+            'Opportunity Cost - (Discounted)'
+    ]:
         fig.add_trace(
             go.Bar(x=projection_data['Year'],
                    y=projection_data[cost_type],
@@ -149,7 +166,28 @@ def update_graph():
 
     # Update the data table placeholder
     table_placeholder.subheader("Projected Costs Table (Actual vs Discounted)")
-    table_placeholder.dataframe(projection_data.style.format("{:.2f}"))
+
+    # Format the DataFrame for display
+    display_df = projection_data.copy()
+    for column in display_df.columns:
+        if column != 'Year':
+            display_df[column] = display_df[column].apply(
+                lambda x: f"${x:.2f}")
+
+    # Reorder columns to group actual and discounted values
+    column_order = [
+        'Year', 'Fuel Cost - (Actual)', 'Fuel Cost - (Discounted)',
+        'Maintenance Cost - (Actual)', 'Maintenance Cost - (Discounted)',
+        'Opportunity Cost - (Actual)', 'Opportunity Cost - (Discounted)',
+        'Market Value - (Nominal)', 'Market Value - (Discounted)'
+    ]
+
+    display_df = display_df[column_order]
+
+    # Display the table with improved formatting
+    table_placeholder.dataframe(
+        display_df.style.set_properties(**{'text-align': 'right'}))
+
 
 # Debounce function
 def debounce(func):
@@ -162,6 +200,7 @@ def debounce(func):
             last_run = time()
 
     return debounced
+
 
 # Wrap update_graph with debounce
 update_graph_debounced = debounce(update_graph)
