@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
+import plotly.express as px
 import numpy as np
 from time import time
 import json
@@ -154,36 +155,54 @@ def update_graph():
     current_projection = generate_cost_projection(st.session_state.inputs['current'])
     planned_projection = generate_cost_projection(st.session_state.inputs['planned'])
 
-    # Create bar chart
-    fig = go.Figure()
-
-    for vehicle, projection in [('Current', current_projection), ('Planned', planned_projection)]:
-        for cost_type in ['Fuel Cost (Discounted)', 'Maintenance Cost (Discounted)', 'Opportunity Cost (Discounted)']:
-            fig.add_trace(
-                go.Bar(
-                    x=projection['Year'],
-                    y=projection[cost_type].round().astype(int),
-                    name=f'{vehicle} - {cost_type.split(" ")[0]}',
-                    legendgroup=vehicle,
-                    hovertemplate='Year: %{x}<br>' + f'{cost_type.split(" ")[0]}: $' + '%{y:,.0f}<br>Total: $%{customdata[0]:,.0f}<extra></extra>',
-                    customdata=np.column_stack((projection['Total Cost (Discounted)'].round().astype(int),))
-                )
-            )
-
-        # Add cumulative cost line
-        fig.add_trace(
-            go.Scatter(
-                x=projection['Year'],
-                y=projection['Cumulative Cost (Discounted)'].round().astype(int),
-                name=f'{vehicle} - Cumulative Cost',
-                yaxis='y2',
-                legendgroup=vehicle,
-                hovertemplate='Year: %{x}<br>Cumulative Cost: $%{y:,.0f}<extra></extra>'
-            )
-        )
-
-    fig.update_layout(
+    # Create bar chart using plotly express
+    fig = px.bar(
+        current_projection.melt(id_vars=['Year'], 
+                                value_vars=['Fuel Cost (Discounted)', 'Maintenance Cost (Discounted)', 'Opportunity Cost (Discounted)'],
+                                var_name='Cost Type', 
+                                value_name='Cost'),
+        x='Year', 
+        y='Cost', 
+        color='Cost Type',
+        barmode='stack',
         title="10-Year Vehicle Cost Projection Comparison (Discounted)",
+        labels={'Cost': 'Annual Costs ($)'},
+        height=600
+    )
+
+    # Add planned vehicle data
+    fig.add_bar(
+        x=planned_projection['Year'],
+        y=planned_projection['Fuel Cost (Discounted)'],
+        name='Planned - Fuel'
+    )
+    fig.add_bar(
+        x=planned_projection['Year'],
+        y=planned_projection['Maintenance Cost (Discounted)'],
+        name='Planned - Maintenance'
+    )
+    fig.add_bar(
+        x=planned_projection['Year'],
+        y=planned_projection['Opportunity Cost (Discounted)'],
+        name='Planned - Opportunity'
+    )
+
+    # Add cumulative cost lines
+    fig.add_scatter(
+        x=current_projection['Year'],
+        y=current_projection['Cumulative Cost (Discounted)'],
+        name='Current - Cumulative Cost',
+        yaxis='y2'
+    )
+    fig.add_scatter(
+        x=planned_projection['Year'],
+        y=planned_projection['Cumulative Cost (Discounted)'],
+        name='Planned - Cumulative Cost',
+        yaxis='y2'
+    )
+
+    # Update layout
+    fig.update_layout(
         xaxis_title="Year",
         yaxis_title="Annual Costs ($)",
         yaxis2=dict(
@@ -195,8 +214,6 @@ def update_graph():
                        planned_projection['Cumulative Cost (Discounted)'].max()) * 1.1
             ]
         ),
-        barmode='stack',  # Updated to 'stack'
-        height=600,
         legend=dict(
             orientation="h",
             yanchor="bottom",
@@ -205,6 +222,11 @@ def update_graph():
             x=1,
             traceorder="grouped"
         )
+    )
+
+    # Update hover template
+    fig.update_traces(
+        hovertemplate='Year: %{x}<br>%{y:$,.0f}<extra></extra>'
     )
 
     # Update the graph placeholder with a dynamic key
