@@ -1,1 +1,1 @@
-{"current": {"initial_price": 65000, "current_age": 3, "kilometers_driven": 20000, "fuel_consumption": 9.0, "current_market_value": 50000, "fuel_price": 1.6, "discount_rate": 0.05}, "planned": {"initial_price": 68000, "current_age": 0, "kilometers_driven": 20000, "fuel_consumption": 0.1, "current_market_value": 68000, "fuel_price": 1.6, "discount_rate": 0.05}}
+{"initial_price": 65000, "current_age": 3, "kilometers_driven": 25000, "fuel_consumption": 9.0, "current_market_value": 50000, "fuel_price": 1.6, "discount_rate": 0.1}

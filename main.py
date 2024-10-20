@@ -157,51 +157,29 @@ def update_graph():
     # Create stacked bar chart
     fig = go.Figure()
 
-    for year in range(11):
-        for vehicle, projection in [('Current', current_projection), ('Planned', planned_projection)]:
-            fuel_cost = projection.loc[projection['Year'] == year, 'Fuel Cost (Discounted)'].values[0]
-            maintenance_cost = projection.loc[projection['Year'] == year, 'Maintenance Cost (Discounted)'].values[0]
-            opportunity_cost = projection.loc[projection['Year'] == year, 'Opportunity Cost (Discounted)'].values[0]
+    for vehicle, projection in [('Current', current_projection), ('Planned', planned_projection)]:
+        for cost_type in [
+                'Fuel Cost (Discounted)', 'Maintenance Cost (Discounted)',
+                'Opportunity Cost (Discounted)'
+        ]:
+            fig.add_trace(
+                go.Bar(x=projection['Year'],
+                       y=projection[cost_type].round().astype(int),
+                       name=f"{vehicle} - {cost_type}",
+                       legendgroup=vehicle,
+                       legendgrouptitle_text=vehicle))
 
-            fig.add_trace(go.Bar(
-                x=[f'Year {year}'],
-                y=[fuel_cost],
-                name=f'{vehicle} - Fuel',
-                marker_color='blue' if vehicle == 'Current' else 'lightblue',
-                legendgroup=vehicle,
-                legendgrouptitle_text=vehicle,
-                hovertemplate=f'{vehicle} - Fuel: $%{{y:,.0f}}<extra></extra>'
-            ))
-            fig.add_trace(go.Bar(
-                x=[f'Year {year}'],
-                y=[maintenance_cost],
-                name=f'{vehicle} - Maintenance',
-                marker_color='red' if vehicle == 'Current' else 'pink',
-                legendgroup=vehicle,
-                hovertemplate=f'{vehicle} - Maintenance: $%{{y:,.0f}}<extra></extra>'
-            ))
-            fig.add_trace(go.Bar(
-                x=[f'Year {year}'],
-                y=[opportunity_cost],
-                name=f'{vehicle} - Opportunity',
-                marker_color='green' if vehicle == 'Current' else 'lightgreen',
-                legendgroup=vehicle,
-                hovertemplate=f'{vehicle} - Opportunity: $%{{y:,.0f}}<extra></extra>'
-            ))
-
-    # Add cumulative cost lines
-    for vehicle, projection, color in [('Current', current_projection, 'rgba(0,0,255,0.7)'), ('Planned', planned_projection, 'rgba(255,0,0,0.7)')]:
+        # Add cumulative cost line
         fig.add_trace(
             go.Scatter(
-                x=[f'Year {year}' for year in projection['Year']],
-                y=projection['Cumulative Cost (Discounted)'].round().astype(int),
+                x=projection['Year'],
+                y=projection['Cumulative Cost (Discounted)'].round().astype(
+                    int),
                 name=f'{vehicle} - Cumulative Cost',
                 yaxis='y2',
                 legendgroup=vehicle,
-                line=dict(color=color, width=2),
-                hovertemplate=f'{vehicle} Cumulative Cost: $%{{y:,.0f}}<extra></extra>'
-            )
-        )
+                hovertemplate=
+                'Year: %{x}<br>Cumulative Cost: $%{y:,.0f}<extra></extra>'))
 
     fig.update_layout(
         title="10-Year Vehicle Cost Projection Comparison (Discounted)",
@@ -214,25 +192,20 @@ def update_graph():
             range=[
                 0, max(current_projection['Cumulative Cost (Discounted)'].max(),
                        planned_projection['Cumulative Cost (Discounted)'].max()) * 1.1
-            ]
-        ),
-        barmode='stack',
+            ]),
+        barmode='group',
         height=600,
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1
-        )
-    )
+        legend=dict(orientation="h",
+                    yanchor="bottom",
+                    y=1.02,
+                    xanchor="right",
+                    x=1))
 
     # Update the graph placeholder with a dynamic key
     graph_placeholder.plotly_chart(
         fig,
         use_container_width=True,
-        key=f"cost_projection_chart_{st.session_state.get('chart_key', 0)}"
-    )
+        key=f"cost_projection_chart_{st.session_state.get('chart_key', 0)}")
 
     # Increment the chart key
     st.session_state['chart_key'] = st.session_state.get('chart_key', 0) + 1
