@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
-import plotly.graph_objects as go
 import plotly.express as px
+import plotly.graph_objects as go
 import numpy as np
 from time import time
 import json
@@ -30,7 +30,7 @@ st.markdown("""
 # Title and description
 st.title("Vehicle Cost Projection Comparison")
 st.write(
-    "This application generates a stacked bar chart showing the projected costs of owning two vehicles (Current and Planned) over the next 10 years."
+    "This application generates a grouped bar chart showing the projected costs of owning two vehicles (Current and Planned) over the next 10 years."
 )
 
 # Functions for calculations
@@ -156,68 +156,51 @@ def update_graph():
     planned_projection = generate_cost_projection(st.session_state.inputs['planned'])
 
     # Prepare data for plotly express
-    data = []
-    for vehicle, projection in [('Current', current_projection), ('Planned', planned_projection)]:
-        for cost_type in ['Fuel Cost (Discounted)', 'Maintenance Cost (Discounted)', 'Opportunity Cost (Discounted)']:
-            for _, row in projection.iterrows():
-                data.append({
-                    'Year': row['Year'],
-                    'Cost': row[cost_type],
-                    'Cost Type': cost_type.split(' ')[0],
-                    'Vehicle': vehicle,
-                    'Total Cost': row['Total Cost (Discounted)']
-                })
+    df = pd.DataFrame({
+        'Year': current_projection['Year'].tolist() * 3 + planned_projection['Year'].tolist() * 3,
+        'Vehicle': ['Current'] * len(current_projection) * 3 + ['Planned'] * len(planned_projection) * 3,
+        'Cost Type': ['Fuel Cost'] * len(current_projection) + ['Maintenance Cost'] * len(current_projection) + ['Opportunity Cost'] * len(current_projection) +
+                     ['Fuel Cost'] * len(planned_projection) + ['Maintenance Cost'] * len(planned_projection) + ['Opportunity Cost'] * len(planned_projection),
+        'Cost': current_projection['Fuel Cost (Discounted)'].tolist() + 
+                current_projection['Maintenance Cost (Discounted)'].tolist() + 
+                current_projection['Opportunity Cost (Discounted)'].tolist() +
+                planned_projection['Fuel Cost (Discounted)'].tolist() + 
+                planned_projection['Maintenance Cost (Discounted)'].tolist() + 
+                planned_projection['Opportunity Cost (Discounted)'].tolist(),
+        'Cumulative Cost': current_projection['Cumulative Cost (Discounted)'].tolist() * 3 + 
+                           planned_projection['Cumulative Cost (Discounted)'].tolist() * 3,
+        'Total Cost': current_projection['Total Cost (Discounted)'].tolist() * 3 + 
+                      planned_projection['Total Cost (Discounted)'].tolist() * 3
+    })
 
-    df = pd.DataFrame(data)
-
-    # Create bar chart using plotly express
+    # Create grouped bar chart using plotly express
     fig = px.bar(df, x='Year', y='Cost', color='Cost Type', pattern_shape='Vehicle',
-                 custom_data=['Vehicle', 'Total Cost'],
-                 barmode='group',
+                 barmode='group', height=600,
                  labels={'Cost': 'Annual Costs ($)'},
-                 title="10-Year Vehicle Cost Projection Comparison (Discounted)",
-                 height=600)
-
-    # Update hover template
-    fig.update_traces(
-        hovertemplate="Year: %{x}<br>%{customdata[0]} - %{y:$,.0f}<br>Total: %{customdata[1]:$,.0f}"
-    )
+                 title='10-Year Vehicle Cost Projection Comparison (Discounted)',
+                 color_discrete_map={'Fuel Cost': '#1f77b4', 'Maintenance Cost': '#ff7f0e', 'Opportunity Cost': '#2ca02c'})
 
     # Add cumulative cost lines
-    for vehicle, projection in [('Current', current_projection), ('Planned', planned_projection)]:
-        fig.add_scatter(
-            x=projection['Year'],
-            y=projection['Cumulative Cost (Discounted)'],
-            name=f'{vehicle} - Cumulative Cost',
-            yaxis='y2',
-            line=dict(dash='dot'),
-            hovertemplate='Year: %{x}<br>Cumulative Cost: $%{y:,.0f}'
-        )
+    for vehicle in ['Current', 'Planned']:
+        vehicle_data = df[(df['Vehicle'] == vehicle) & (df['Cost Type'] == 'Fuel Cost')]
+        fig.add_trace(go.Scatter(x=vehicle_data['Year'], y=vehicle_data['Cumulative Cost'],
+                                 mode='lines', name=f'{vehicle} - Cumulative Cost',
+                                 yaxis='y2', line=dict(dash='dot')))
 
     # Update layout
     fig.update_layout(
-        xaxis_title="Year",
-        yaxis_title="Annual Costs ($)",
-        yaxis2=dict(
-            title='Cumulative Cost ($)',
-            overlaying='y',
-            side='right',
-            range=[
-                0, max(current_projection['Cumulative Cost (Discounted)'].max(),
-                       planned_projection['Cumulative Cost (Discounted)'].max()) * 1.1
-            ]
-        ),
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1,
-            traceorder="grouped"
-        )
+        yaxis2=dict(title='Cumulative Cost ($)', overlaying='y', side='right'),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        hovermode='x unified'
     )
 
-    # Update the graph placeholder
+    # Custom hover template
+    fig.update_traces(
+        hovertemplate='<b>%{data.name}</b><br>Year: %{x}<br>Cost: $%{y:,.0f}<br>Total: $%{customdata[0]:,.0f}<extra></extra>',
+        customdata=df[['Total Cost']],
+    )
+
+    # Update the graph placeholder with a dynamic key
     graph_placeholder.plotly_chart(
         fig,
         use_container_width=True,
