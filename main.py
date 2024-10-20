@@ -39,8 +39,8 @@ def calculate_fuel_cost(kilometers, fuel_consumption, fuel_price):
     return (kilometers * fuel_consumption / 100) * fuel_price
 
 def calculate_maintenance_cost(age, initial_price):
-    base_percentage = 0.01  # 1% of initial price for a new car
-    age_factor = 1 + (age * 0.005)  # Increase by 0.5% per year
+    base_percentage = 0.02  # 2% of initial price for a new car
+    age_factor = 1 + (age * 0.01)  # Increase by 1% per year
     return initial_price * base_percentage * age_factor
 
 def calculate_opportunity_cost(market_value, discount_rate):
@@ -74,35 +74,21 @@ def generate_cost_projection(inputs):
 
     return pd.DataFrame(data)
 
-# Input fields
-st.header("Input Variables")
-
-col1, col2 = st.columns(2)
-
-with col1:
-    initial_price = st.number_input("Initial Purchase Price ($)", min_value=0, value=30000, step=1000)
-    current_age = st.number_input("Current Vehicle Age (years)", min_value=0, max_value=30, value=5, step=1)
-    kilometers_driven = st.number_input("Kilometers Driven Annually", min_value=0, value=15000, step=1000)
-    fuel_consumption = st.number_input("Average Fuel Consumption (L/100km)", min_value=0.0, value=8.0, step=0.1)
-
-with col2:
-    current_market_value = st.number_input("Current Market Value ($)", min_value=0, value=20000, step=1000)
-    fuel_price = st.number_input("Fuel Price ($/L)", min_value=0.0, value=1.5, step=0.1)
-    discount_rate = st.number_input("Discount Rate (%)", min_value=0.0, max_value=100.0, value=10.0, step=0.1) / 100
-
-# Generate projection
-if st.button("Generate Cost Projection"):
-    inputs = {
-        'initial_price': initial_price,
-        'current_age': current_age,
-        'kilometers_driven': kilometers_driven,
-        'fuel_consumption': fuel_consumption,
-        'current_market_value': current_market_value,
-        'fuel_price': fuel_price,
-        'discount_rate': discount_rate
+# Initialize session state
+if 'inputs' not in st.session_state:
+    st.session_state.inputs = {
+        'initial_price': 30000,
+        'current_age': 5,
+        'kilometers_driven': 15000,
+        'fuel_consumption': 8.0,
+        'current_market_value': 20000,
+        'fuel_price': 1.5,
+        'discount_rate': 0.10
     }
 
-    projection_data = generate_cost_projection(inputs)
+# Function to update graph
+def update_graph():
+    projection_data = generate_cost_projection(st.session_state.inputs)
 
     # Create stacked bar chart
     fig = go.Figure()
@@ -129,6 +115,25 @@ if st.button("Generate Cost Projection"):
     # Display the data table
     st.subheader("Projected Costs Table")
     st.dataframe(projection_data.style.format("{:.2f}"))
+
+# Input fields with callbacks
+st.header("Input Variables")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.session_state.inputs['initial_price'] = st.number_input("Initial Purchase Price ($)", min_value=0, value=st.session_state.inputs['initial_price'], step=1000, on_change=update_graph)
+    st.session_state.inputs['current_age'] = st.number_input("Current Vehicle Age (years)", min_value=0, max_value=30, value=st.session_state.inputs['current_age'], step=1, on_change=update_graph)
+    st.session_state.inputs['kilometers_driven'] = st.number_input("Kilometers Driven Annually", min_value=0, value=st.session_state.inputs['kilometers_driven'], step=1000, on_change=update_graph)
+    st.session_state.inputs['fuel_consumption'] = st.number_input("Average Fuel Consumption (L/100km)", min_value=0.0, value=st.session_state.inputs['fuel_consumption'], step=0.1, on_change=update_graph)
+
+with col2:
+    st.session_state.inputs['current_market_value'] = st.number_input("Current Market Value ($)", min_value=0, value=st.session_state.inputs['current_market_value'], step=1000, on_change=update_graph)
+    st.session_state.inputs['fuel_price'] = st.number_input("Fuel Price ($/L)", min_value=0.0, value=st.session_state.inputs['fuel_price'], step=0.1, on_change=update_graph)
+    st.session_state.inputs['discount_rate'] = st.number_input("Discount Rate (%)", min_value=0.0, max_value=100.0, value=st.session_state.inputs['discount_rate'] * 100, step=0.1, on_change=update_graph) / 100
+
+# Generate initial graph
+update_graph()
 
 # Additional information
 st.markdown("""
