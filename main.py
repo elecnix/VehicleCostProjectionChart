@@ -48,6 +48,7 @@ def discount_cash_flow(cost, discount_rate, year):
 def generate_cost_projection(inputs):
     years = range(11)  # 0 to 10 years
     data = []
+    cumulative_cost = 0
 
     for year in years:
         current_age = inputs['current_age'] + year
@@ -76,6 +77,7 @@ def generate_cost_projection(inputs):
 
         total_discounted_cost = (discounted_fuel_cost + discounted_maintenance_cost +
                                  discounted_opportunity_cost)
+        cumulative_cost += total_discounted_cost
 
         data.append({
             'Year': year,
@@ -88,11 +90,10 @@ def generate_cost_projection(inputs):
             'Opportunity Cost (Actual)': opportunity_cost,
             'Opportunity Cost (Discounted)': discounted_opportunity_cost,
             'Total Cost (Discounted)': total_discounted_cost,
+            'Cumulative Cost (Discounted)': cumulative_cost,
         })
 
-    df = pd.DataFrame(data)
-    df['Cumulative Cost (Discounted)'] = df['Total Cost (Discounted)'].cumsum()
-    return df
+    return pd.DataFrame(data)
 
 # Functions for persistent storage
 def load_inputs():
@@ -146,14 +147,16 @@ def update_graph():
         x=projection_data['Year'],
         y=projection_data['Cumulative Cost (Discounted)'].round().astype(int),
         name='Cumulative Cost',
-        yaxis='y2'
+        yaxis='y2',
+        hovertemplate='Year: %{x}<br>Cumulative Cost: $%{y:,.0f}<extra></extra>'
     ))
 
     fig.update_layout(
         title="10-Year Vehicle Cost Projection (Discounted)",
         xaxis_title="Year",
         yaxis_title="Annual Costs ($)",
-        yaxis2=dict(title='Cumulative Cost ($)', overlaying='y', side='right'),
+        yaxis2=dict(title='Cumulative Cost ($)', overlaying='y', side='right', 
+                    range=[0, projection_data['Cumulative Cost (Discounted)'].max() * 1.1]),
         barmode='stack',
         height=600,
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
