@@ -32,23 +32,18 @@ st.write(
     "This application generates a stacked bar chart showing the projected costs of owning a single vehicle over the next 10 years."
 )
 
-
 # Functions for calculations
 def calculate_fuel_cost(kilometers, fuel_consumption, fuel_price):
     return (kilometers * fuel_consumption / 100) * fuel_price
 
-
 def calculate_maintenance_cost(age, initial_price, year_offset=0):
     return initial_price * (0.0015 * (age + year_offset) + 0.005)
-
 
 def calculate_opportunity_cost(market_value, discount_rate):
     return market_value * discount_rate
 
-
 def discount_cash_flow(cost, discount_rate, year):
     return cost / (1 + discount_rate)**year
-
 
 def generate_cost_projection(inputs):
     years = range(11)  # 0 to 10 years
@@ -79,29 +74,25 @@ def generate_cost_projection(inputs):
         discounted_opportunity_cost = discount_cash_flow(
             opportunity_cost, inputs['discount_rate'], year)
 
+        total_discounted_cost = (discounted_fuel_cost + discounted_maintenance_cost +
+                                 discounted_opportunity_cost)
+
         data.append({
-            'Year':
-            year,
-            'Market Value (Nominal)':
-            market_value,
-            'Market Value (Discounted)':
-            discounted_market_value,
-            'Fuel Cost (Actual)':
-            fuel_cost,
-            'Fuel Cost (Discounted)':
-            discounted_fuel_cost,
-            'Maintenance Cost (Actual)':
-            maintenance_cost,
-            'Maintenance Cost (Discounted)':
-            discounted_maintenance_cost,
-            'Opportunity Cost (Actual)':
-            opportunity_cost,
-            'Opportunity Cost (Discounted)':
-            discounted_opportunity_cost,
+            'Year': year,
+            'Market Value (Nominal)': market_value,
+            'Market Value (Discounted)': discounted_market_value,
+            'Fuel Cost (Actual)': fuel_cost,
+            'Fuel Cost (Discounted)': discounted_fuel_cost,
+            'Maintenance Cost (Actual)': maintenance_cost,
+            'Maintenance Cost (Discounted)': discounted_maintenance_cost,
+            'Opportunity Cost (Actual)': opportunity_cost,
+            'Opportunity Cost (Discounted)': discounted_opportunity_cost,
+            'Total Cost (Discounted)': total_discounted_cost,
         })
 
-    return pd.DataFrame(data)
-
+    df = pd.DataFrame(data)
+    df['Cumulative Cost (Discounted)'] = df['Total Cost (Discounted)'].cumsum()
+    return df
 
 # Functions for persistent storage
 def load_inputs():
@@ -118,11 +109,9 @@ def load_inputs():
         'discount_rate': 0.10
     }
 
-
 def save_inputs(inputs):
     with open('user_inputs.json', 'w') as f:
         json.dump(inputs, f)
-
 
 # Initialize session state
 if 'inputs' not in st.session_state:
@@ -135,7 +124,6 @@ if 'chart_key' not in st.session_state:
 # Create placeholders for graph and table
 graph_placeholder = st.empty()
 table_placeholder = st.empty()
-
 
 # Function to update graph
 def update_graph():
@@ -153,16 +141,23 @@ def update_graph():
                    y=projection_data[cost_type].round().astype(int),
                    name=cost_type))
 
-    fig.update_layout(title="10-Year Vehicle Cost Projection (Discounted)",
-                      xaxis_title="Year",
-                      yaxis_title="Discounted Costs ($)",
-                      barmode='stack',
-                      height=600,
-                      legend=dict(orientation="h",
-                                  yanchor="bottom",
-                                  y=1.02,
-                                  xanchor="right",
-                                  x=1))
+    # Add cumulative cost line
+    fig.add_trace(go.Scatter(
+        x=projection_data['Year'],
+        y=projection_data['Cumulative Cost (Discounted)'].round().astype(int),
+        name='Cumulative Cost',
+        yaxis='y2'
+    ))
+
+    fig.update_layout(
+        title="10-Year Vehicle Cost Projection (Discounted)",
+        xaxis_title="Year",
+        yaxis_title="Annual Costs ($)",
+        yaxis2=dict(title='Cumulative Cost ($)', overlaying='y', side='right'),
+        barmode='stack',
+        height=600,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
 
     # Update the graph placeholder with a dynamic key
     graph_placeholder.plotly_chart(
@@ -180,12 +175,11 @@ def update_graph():
     display_df = projection_data.copy()
     for column in display_df.columns:
         if column != 'Year':
-            display_df[column] = display_df[column].apply(lambda x: f'${x:,.0f}')
+            display_df[column] = display_df[column].round().astype(int).apply(lambda x: f'${x:,}')
 
     # Display the table with improved formatting
     table_placeholder.dataframe(
         display_df.style.set_properties(**{'text-align': 'right'}))
-
 
 # Debounce function
 def debounce(func):
@@ -198,7 +192,6 @@ def debounce(func):
             last_run = time()
 
     return debounced
-
 
 # Wrap update_graph with debounce
 update_graph_debounced = debounce(update_graph)
