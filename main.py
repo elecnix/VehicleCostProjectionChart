@@ -29,7 +29,7 @@ st.markdown("""
 # Title and description
 st.title("Vehicle Cost Projection Comparison")
 st.write(
-    "This application generates a bar chart showing the projected costs of owning two vehicles (Current and Planned) over the next 10 years."
+    "This application generates a stacked bar chart showing the projected costs of owning two vehicles (Current and Planned) over the next 10 years."
 )
 
 # Functions for calculations
@@ -158,26 +158,18 @@ def update_graph():
     fig = go.Figure()
 
     for vehicle, projection in [('Current', current_projection), ('Planned', planned_projection)]:
-        fig.add_trace(
-            go.Bar(
-                x=projection['Year'],
-                y=projection['Total Cost (Discounted)'].round().astype(int),
-                name=f'{vehicle} Vehicle',
-                legendgroup=vehicle,
-                hovertemplate=(
-                    'Year: %{x}<br>'
-                    'Total Cost: $%{y:,.0f}<br>'
-                    'Fuel Cost: ${customdata[0]:,.0f}<br>'
-                    'Maintenance Cost: ${customdata[1]:,.0f}<br>'
-                    'Opportunity Cost: ${customdata[2]:,.0f}<extra></extra>'
-                ),
-                customdata=np.column_stack((
-                    projection['Fuel Cost (Discounted)'].round().astype(int),
-                    projection['Maintenance Cost (Discounted)'].round().astype(int),
-                    projection['Opportunity Cost (Discounted)'].round().astype(int)
-                ))
+        for cost_type in ['Fuel Cost (Discounted)', 'Maintenance Cost (Discounted)', 'Opportunity Cost (Discounted)']:
+            fig.add_trace(
+                go.Bar(
+                    x=projection['Year'],
+                    y=projection[cost_type].round().astype(int),
+                    name=f'{vehicle} - {cost_type.split(" ")[0]}',
+                    legendgroup=vehicle,
+                    stack=vehicle,
+                    hovertemplate='Year: %{x}<br>{}: $%{y:,.0f}<br>Total: $%{customdata[0]:,.0f}<extra></extra>'.format(cost_type),
+                    customdata=np.column_stack((projection['Total Cost (Discounted)'].round().astype(int),))
+                )
             )
-        )
 
         # Add cumulative cost line
         fig.add_trace(
@@ -204,7 +196,7 @@ def update_graph():
                        planned_projection['Cumulative Cost (Discounted)'].max()) * 1.1
             ]
         ),
-        barmode='group',
+        barmode='stack',
         height=600,
         legend=dict(
             orientation="h",
