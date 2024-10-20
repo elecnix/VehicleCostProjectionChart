@@ -35,8 +35,8 @@ st.write("This application generates a stacked bar chart showing the projected c
 def calculate_fuel_cost(kilometers, fuel_consumption, fuel_price):
     return (kilometers * fuel_consumption / 100) * fuel_price
 
-def calculate_maintenance_cost(age, initial_price):
-    return initial_price * (0.005 + (0.015 * age / 10))
+def calculate_maintenance_cost(age, initial_price, year_offset=0):
+    return initial_price * (0.0015 * (age + year_offset) + 0.005)
 
 def calculate_opportunity_cost(market_value, discount_rate):
     return market_value * discount_rate
@@ -53,7 +53,7 @@ def generate_cost_projection(inputs):
         market_value = max(0, inputs['current_market_value'] * (1 - 0.1) ** year)  # Simple linear depreciation
 
         fuel_cost = calculate_fuel_cost(inputs['kilometers_driven'], inputs['fuel_consumption'], inputs['fuel_price'])
-        maintenance_cost = calculate_maintenance_cost(current_age, inputs['initial_price'])
+        maintenance_cost = calculate_maintenance_cost(inputs['current_age'], inputs['initial_price'], year)
         opportunity_cost = calculate_opportunity_cost(market_value, inputs['discount_rate'])
 
         discounted_fuel_cost = discount_cash_flow(fuel_cost, inputs['discount_rate'], year)
@@ -178,7 +178,7 @@ st.markdown("""
 - Insurance costs are excluded in this prototype.
 - All costs are discounted to present value.
 - The opportunity cost is calculated based on the current market value of the vehicle.
-- Maintenance costs increase linearly with the vehicle's age, from 0.5% of the initial price for a new vehicle to 2% for a 10-year-old vehicle.
+- Maintenance costs are calculated using the formula: MC(A+t) = V * (0.0015 * (A+t) + 0.005), where V is the initial price, A is the current age, and t is the year offset.
 """)
 
 # Footer
