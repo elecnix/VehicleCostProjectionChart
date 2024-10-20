@@ -15,7 +15,7 @@ st.set_page_config(page_title="Vehicle Cost Projection",
 st.markdown("""
 <style>
     .reportview-container .main .block-container {
-        max-width: 1000px;
+        max-width: 1200px;
         padding-top: 2rem;
         padding-bottom: 2rem;
     }
@@ -27,9 +27,9 @@ st.markdown("""
             unsafe_allow_html=True)
 
 # Title and description
-st.title("Vehicle Cost Projection")
+st.title("Vehicle Cost Projection Comparison")
 st.write(
-    "This application generates a stacked bar chart showing the projected costs of owning a single vehicle over the next 10 years."
+    "This application generates a stacked bar chart showing the projected costs of owning two vehicles (Current and Planned) over the next 10 years."
 )
 
 # Functions for calculations
@@ -98,18 +98,35 @@ def generate_cost_projection(inputs):
 
 # Functions for persistent storage
 def load_inputs():
+    default_inputs = {
+        'current': {
+            'initial_price': 30000,
+            'current_age': 5,
+            'kilometers_driven': 15000,
+            'fuel_consumption': 8.0,
+            'current_market_value': 20000,
+            'fuel_price': 1.5,
+            'discount_rate': 0.10
+        },
+        'planned': {
+            'initial_price': 40000,
+            'current_age': 0,
+            'kilometers_driven': 15000,
+            'fuel_consumption': 6.0,
+            'current_market_value': 40000,
+            'fuel_price': 1.5,
+            'discount_rate': 0.10
+        }
+    }
+    
     if os.path.exists('user_inputs.json'):
         with open('user_inputs.json', 'r') as f:
-            return json.load(f)
-    return {
-        'initial_price': 30000,
-        'current_age': 5,
-        'kilometers_driven': 15000,
-        'fuel_consumption': 8.0,
-        'current_market_value': 20000,
-        'fuel_price': 1.5,
-        'discount_rate': 0.10
-    }
+            saved_inputs = json.load(f)
+        # Merge saved inputs with default inputs
+        for vehicle in ['current', 'planned']:
+            if vehicle in saved_inputs:
+                default_inputs[vehicle].update(saved_inputs[vehicle])
+    return default_inputs
 
 def save_inputs(inputs):
     with open('user_inputs.json', 'w') as f:
@@ -118,6 +135,11 @@ def save_inputs(inputs):
 # Initialize session state
 if 'inputs' not in st.session_state:
     st.session_state.inputs = load_inputs()
+
+# Ensure both 'current' and 'planned' keys exist in the session state
+for vehicle in ['current', 'planned']:
+    if vehicle not in st.session_state.inputs:
+        st.session_state.inputs[vehicle] = load_inputs()[vehicle]
 
 # Initialize chart_key in session state
 if 'chart_key' not in st.session_state:
@@ -129,41 +151,38 @@ table_placeholder = st.empty()
 
 # Function to update graph
 def update_graph():
-    projection_data = generate_cost_projection(st.session_state.inputs)
+    current_projection = generate_cost_projection(st.session_state.inputs['current'])
+    planned_projection = generate_cost_projection(st.session_state.inputs['planned'])
 
     # Create stacked bar chart
     fig = go.Figure()
 
-    cost_types = {
-        'Fuel': ('Fuel Cost (Discounted)', 'Fuel Cost (Actual)'),
-        'Maintenance': ('Maintenance Cost (Discounted)', 'Maintenance Cost (Actual)'),
-        'Opportunity': ('Opportunity Cost (Discounted)', 'Opportunity Cost (Actual)')
-    }
+    for vehicle, projection in [('Current', current_projection), ('Planned', planned_projection)]:
+        for cost_type in [
+                'Fuel Cost (Discounted)', 'Maintenance Cost (Discounted)',
+                'Opportunity Cost (Discounted)'
+        ]:
+            fig.add_trace(
+                go.Bar(x=projection['Year'],
+                       y=projection[cost_type].round().astype(int),
+                       name=f"{vehicle} - {cost_type}",
+                       legendgroup=vehicle,
+                       legendgrouptitle_text=vehicle))
 
-    for cost_name, (discounted_col, actual_col) in cost_types.items():
+        # Add cumulative cost line
         fig.add_trace(
-            go.Bar(
-                x=projection_data['Year'],
-                y=projection_data[discounted_col].round().astype(int),
-                name=cost_name,
-                customdata=projection_data[actual_col].round().astype(int),
-                hovertemplate='Year: %{x}<br>%{data.name}: $%{y:,.0f} (Discounted)<br>Actual: $%{customdata:,.0f}<extra></extra>'
-            )
-        )
-
-    # Add cumulative cost line
-    fig.add_trace(
-        go.Scatter(
-            x=projection_data['Year'],
-            y=projection_data['Cumulative Cost (Discounted)'].round().astype(int),
-            name='Cumulative Cost',
-            yaxis='y2',
-            hovertemplate='Year: %{x}<br>Cumulative Cost: $%{y:,.0f}<extra></extra>'
-        )
-    )
+            go.Scatter(
+                x=projection['Year'],
+                y=projection['Cumulative Cost (Discounted)'].round().astype(
+                    int),
+                name=f'{vehicle} - Cumulative Cost',
+                yaxis='y2',
+                legendgroup=vehicle,
+                hovertemplate=
+                'Year: %{x}<br>Cumulative Cost: $%{y:,.0f}<extra></extra>'))
 
     fig.update_layout(
-        title="10-Year Vehicle Cost Projection (Discounted)",
+        title="10-Year Vehicle Cost Projection Comparison (Discounted)",
         xaxis_title="Year",
         yaxis_title="Annual Costs ($)",
         yaxis2=dict(
@@ -171,9 +190,10 @@ def update_graph():
             overlaying='y',
             side='right',
             range=[
-                0, projection_data['Cumulative Cost (Discounted)'].max() * 1.1
+                0, max(current_projection['Cumulative Cost (Discounted)'].max(),
+                       planned_projection['Cumulative Cost (Discounted)'].max()) * 1.1
             ]),
-        barmode='stack',
+        barmode='group',
         height=600,
         legend=dict(orientation="h",
                     yanchor="bottom",
@@ -193,16 +213,21 @@ def update_graph():
     # Update the data table placeholder
     table_placeholder.subheader("Projected Costs Table (Actual vs Discounted)")
 
+    # Combine and format the DataFrames for display
+    combined_df = pd.concat([current_projection.add_prefix('Current - '),
+                             planned_projection.add_prefix('Planned - ')], axis=1)
+    combined_df = combined_df.reset_index(drop=True)
+    combined_df.insert(0, 'Year', current_projection['Year'].values)
+
     # Format the DataFrame for display
-    display_df = projection_data.copy()
-    for column in display_df.columns:
+    for column in combined_df.columns:
         if column != 'Year':
-            display_df[column] = display_df[column].round().astype(int).apply(
+            combined_df[column] = combined_df[column].round().astype(int).apply(
                 lambda x: f'${x:,}')
 
     # Display the table with improved formatting
     table_placeholder.dataframe(
-        display_df.style.set_properties(**{'text-align': 'right'}))
+        combined_df.style.set_properties(**{'text-align': 'right'}))
 
 # Debounce function
 def debounce(func):
@@ -222,53 +247,63 @@ update_graph_debounced = debounce(update_graph)
 # Use st.form to wrap all inputs
 with st.form(key='input_form'):
     st.header("Input Variables")
-    col1, col2 = st.columns(2)
+    
+    for vehicle in ['current', 'planned']:
+        st.subheader(f"{vehicle.capitalize()} Vehicle")
+        col1, col2 = st.columns(2)
 
-    with col1:
-        st.session_state.inputs['initial_price'] = st.slider(
-            "Initial Vehicle Price ($)",
-            min_value=0,
-            max_value=100000,
-            value=st.session_state.inputs['initial_price'],
-            step=1000)
-        st.session_state.inputs['current_age'] = st.slider(
-            "Current Vehicle Age (years)",
-            min_value=0,
-            max_value=30,
-            value=st.session_state.inputs['current_age'],
-            step=1)
-        st.session_state.inputs['kilometers_driven'] = st.slider(
-            "Kilometers Driven Annually",
-            min_value=0,
-            max_value=50000,
-            value=st.session_state.inputs['kilometers_driven'],
-            step=1000)
-        st.session_state.inputs['fuel_consumption'] = st.slider(
-            "Average Fuel Consumption (L/100km)",
-            min_value=0.0,
-            max_value=20.0,
-            value=st.session_state.inputs['fuel_consumption'],
-            step=0.1)
+        with col1:
+            st.session_state.inputs[vehicle]['initial_price'] = st.slider(
+                f"{vehicle.capitalize()} - Initial Vehicle Price ($)",
+                min_value=0,
+                max_value=100000,
+                value=st.session_state.inputs[vehicle]['initial_price'],
+                step=1000,
+                key=f"{vehicle}_initial_price")
+            st.session_state.inputs[vehicle]['current_age'] = st.slider(
+                f"{vehicle.capitalize()} - Current Vehicle Age (years)",
+                min_value=0,
+                max_value=30,
+                value=st.session_state.inputs[vehicle]['current_age'],
+                step=1,
+                key=f"{vehicle}_current_age")
+            st.session_state.inputs[vehicle]['kilometers_driven'] = st.slider(
+                f"{vehicle.capitalize()} - Kilometers Driven Annually",
+                min_value=0,
+                max_value=50000,
+                value=st.session_state.inputs[vehicle]['kilometers_driven'],
+                step=1000,
+                key=f"{vehicle}_kilometers_driven")
+            st.session_state.inputs[vehicle]['fuel_consumption'] = st.slider(
+                f"{vehicle.capitalize()} - Average Fuel Consumption (L/100km)",
+                min_value=0.0,
+                max_value=20.0,
+                value=st.session_state.inputs[vehicle]['fuel_consumption'],
+                step=0.1,
+                key=f"{vehicle}_fuel_consumption")
 
-    with col2:
-        st.session_state.inputs['current_market_value'] = st.slider(
-            "Current Market Value ($)",
-            min_value=0,
-            max_value=100000,
-            value=st.session_state.inputs['current_market_value'],
-            step=1000)
-        st.session_state.inputs['fuel_price'] = st.slider(
-            "Fuel Price ($/L)",
-            min_value=0.0,
-            max_value=5.0,
-            value=st.session_state.inputs['fuel_price'],
-            step=0.1)
-        st.session_state.inputs['discount_rate'] = st.slider(
-            "Discount Rate (%)",
-            min_value=0.0,
-            max_value=20.0,
-            value=st.session_state.inputs['discount_rate'] * 100,
-            step=0.1) / 100
+        with col2:
+            st.session_state.inputs[vehicle]['current_market_value'] = st.slider(
+                f"{vehicle.capitalize()} - Current Market Value ($)",
+                min_value=0,
+                max_value=100000,
+                value=st.session_state.inputs[vehicle]['current_market_value'],
+                step=1000,
+                key=f"{vehicle}_current_market_value")
+            st.session_state.inputs[vehicle]['fuel_price'] = st.slider(
+                f"{vehicle.capitalize()} - Fuel Price ($/L)",
+                min_value=0.0,
+                max_value=5.0,
+                value=st.session_state.inputs[vehicle]['fuel_price'],
+                step=0.1,
+                key=f"{vehicle}_fuel_price")
+            st.session_state.inputs[vehicle]['discount_rate'] = st.slider(
+                f"{vehicle.capitalize()} - Discount Rate (%)",
+                min_value=0.0,
+                max_value=20.0,
+                value=st.session_state.inputs[vehicle]['discount_rate'] * 100,
+                step=0.1,
+                key=f"{vehicle}_discount_rate") / 100
 
     submit_button = st.form_submit_button(label='Update Graph')
 
