@@ -38,8 +38,10 @@ st.write("This application generates a stacked bar chart showing the projected c
 def calculate_fuel_cost(kilometers, fuel_consumption, fuel_price):
     return (kilometers * fuel_consumption / 100) * fuel_price
 
-def calculate_maintenance_cost(age, maintenance_costs):
-    return maintenance_costs[min(age, len(maintenance_costs) - 1)]
+def calculate_maintenance_cost(age, initial_price):
+    base_percentage = 0.01  # 1% of initial price for a new car
+    age_factor = 1 + (age * 0.005)  # Increase by 0.5% per year
+    return initial_price * base_percentage * age_factor
 
 def calculate_opportunity_cost(market_value, discount_rate):
     return market_value * discount_rate
@@ -56,7 +58,7 @@ def generate_cost_projection(inputs):
         market_value = max(0, inputs['current_market_value'] * (1 - 0.1) ** year)  # Simple linear depreciation
 
         fuel_cost = calculate_fuel_cost(inputs['kilometers_driven'], inputs['fuel_consumption'], inputs['fuel_price'])
-        maintenance_cost = calculate_maintenance_cost(current_age, inputs['maintenance_costs'])
+        maintenance_cost = calculate_maintenance_cost(current_age, inputs['initial_price'])
         opportunity_cost = calculate_opportunity_cost(market_value, inputs['discount_rate'])
 
         discounted_fuel_cost = discount_cash_flow(fuel_cost, inputs['discount_rate'], year)
@@ -88,11 +90,6 @@ with col2:
     fuel_price = st.number_input("Fuel Price ($/L)", min_value=0.0, value=1.5, step=0.1)
     discount_rate = st.number_input("Discount Rate (%)", min_value=0.0, max_value=100.0, value=10.0, step=0.1) / 100
 
-# Maintenance costs input
-st.subheader("Maintenance Costs by Vehicle Age")
-st.write("Enter the maintenance cost for each year of vehicle age (up to 20 years).")
-maintenance_costs = [st.number_input(f"Year {i}", min_value=0, value=500 + i * 50, step=100) for i in range(20)]
-
 # Generate projection
 if st.button("Generate Cost Projection"):
     inputs = {
@@ -102,8 +99,7 @@ if st.button("Generate Cost Projection"):
         'fuel_consumption': fuel_consumption,
         'current_market_value': current_market_value,
         'fuel_price': fuel_price,
-        'discount_rate': discount_rate,
-        'maintenance_costs': maintenance_costs
+        'discount_rate': discount_rate
     }
 
     projection_data = generate_cost_projection(inputs)
@@ -141,7 +137,7 @@ st.markdown("""
 - Insurance costs are excluded in this prototype.
 - All costs are discounted to present value.
 - The opportunity cost is calculated based on the current market value of the vehicle.
-- Maintenance costs increase with the vehicle's age.
+- Maintenance costs increase with the vehicle's age and are based on a percentage of the initial purchase price.
 """)
 
 # Footer
