@@ -29,7 +29,7 @@ st.markdown("""
 # Title and description
 st.title("Vehicle Cost Projection Comparison")
 st.write(
-    "This application compares the projected costs of owning two vehicles (Current and Planned) over a 10-year period."
+    "This application generates a stacked bar chart showing the projected costs of owning two vehicles (Current and Planned) over the next 10 years."
 )
 
 # Functions for calculations
@@ -47,14 +47,16 @@ def discount_cash_flow(cost, discount_rate, year):
 
 def generate_cost_projection(inputs):
     years = range(11)  # 0 to 10 years
-    total_fuel_cost = 0
-    total_maintenance_cost = 0
-    total_opportunity_cost = 0
+    data = []
+    cumulative_cost = 0
 
     for year in years:
         current_age = inputs['current_age'] + year
         market_value = max(0, inputs['current_market_value'] *
                            (1 - 0.1)**year)  # Simple linear depreciation
+        discounted_market_value = discount_cash_flow(market_value,
+                                                     inputs['discount_rate'],
+                                                     year)
 
         fuel_cost = calculate_fuel_cost(inputs['kilometers_driven'],
                                         inputs['fuel_consumption'],
@@ -73,16 +75,26 @@ def generate_cost_projection(inputs):
         discounted_opportunity_cost = discount_cash_flow(
             opportunity_cost, inputs['discount_rate'], year)
 
-        total_fuel_cost += discounted_fuel_cost
-        total_maintenance_cost += discounted_maintenance_cost
-        total_opportunity_cost += discounted_opportunity_cost
+        total_discounted_cost = (discounted_fuel_cost +
+                                 discounted_maintenance_cost +
+                                 discounted_opportunity_cost)
+        cumulative_cost += total_discounted_cost
 
-    return pd.DataFrame({
-        'Fuel Cost (Discounted)': [total_fuel_cost],
-        'Maintenance Cost (Discounted)': [total_maintenance_cost],
-        'Opportunity Cost (Discounted)': [total_opportunity_cost],
-        'Total Cost (Discounted)': [total_fuel_cost + total_maintenance_cost + total_opportunity_cost]
-    })
+        data.append({
+            'Year': year,
+            'Market Value (Nominal)': market_value,
+            'Market Value (Discounted)': discounted_market_value,
+            'Fuel Cost (Actual)': fuel_cost,
+            'Fuel Cost (Discounted)': discounted_fuel_cost,
+            'Maintenance Cost (Actual)': maintenance_cost,
+            'Maintenance Cost (Discounted)': discounted_maintenance_cost,
+            'Opportunity Cost (Actual)': opportunity_cost,
+            'Opportunity Cost (Discounted)': discounted_opportunity_cost,
+            'Total Cost (Discounted)': total_discounted_cost,
+            'Cumulative Cost (Discounted)': cumulative_cost,
+        })
+
+    return pd.DataFrame(data)
 
 # Functions for persistent storage
 def load_inputs():
@@ -142,41 +154,65 @@ def update_graph():
     current_projection = generate_cost_projection(st.session_state.inputs['current'])
     planned_projection = generate_cost_projection(st.session_state.inputs['planned'])
 
-    x = ['Fuel', 'Maintenance', 'Opportunity']
-    y_current = [
-        current_projection['Fuel Cost (Discounted)'].values[0],
-        current_projection['Maintenance Cost (Discounted)'].values[0],
-        current_projection['Opportunity Cost (Discounted)'].values[0]
-    ]
-    y_planned = [
-        planned_projection['Fuel Cost (Discounted)'].values[0],
-        planned_projection['Maintenance Cost (Discounted)'].values[0],
-        planned_projection['Opportunity Cost (Discounted)'].values[0]
-    ]
+    # Create separate lists of traces for each vehicle
+    current_traces = []
+    planned_traces = []
 
-    current_trace = go.Bar(
-        name='Current Vehicle',
-        x=x,
-        y=y_current,
-        text=[f'${y:,.0f}' for y in y_current],
-        textposition='auto',
-        hovertemplate='%{x}: $%{y:,.0f}<extra></extra>'
-    )
-    planned_trace = go.Bar(
-        name='Planned Vehicle',
-        x=x,
-        y=y_planned,
-        text=[f'${y:,.0f}' for y in y_planned],
-        textposition='auto',
-        hovertemplate='%{x}: $%{y:,.0f}<extra></extra>'
-    )
+    for cost_type in ['Fuel Cost (Discounted)', 'Maintenance Cost (Discounted)', 'Opportunity Cost (Discounted)']:
+        current_traces.append(go.Bar(
+            name=f'Current - {cost_type.split(" ")[0]}',
+            x=current_projection['Year'],
+            y=current_projection[cost_type].round().astype(int),
+            legendgroup='Current',
+            hovertemplate='Year: %{x}<br>' + f'{cost_type.split(" ")[0]}: $' + '%{y:,.0f}<br>Total: $%{customdata[0]:,.0f}<extra></extra>',
+            customdata=np.column_stack((current_projection['Total Cost (Discounted)'].round().astype(int),))
+        ))
+        
+        planned_traces.append(go.Bar(
+            name=f'Planned - {cost_type.split(" ")[0]}',
+            x=planned_projection['Year'],
+            y=planned_projection[cost_type].round().astype(int),
+            legendgroup='Planned',
+            hovertemplate='Year: %{x}<br>' + f'{cost_type.split(" ")[0]}: $' + '%{y:,.0f}<br>Total: $%{customdata[0]:,.0f}<extra></extra>',
+            customdata=np.column_stack((planned_projection['Total Cost (Discounted)'].round().astype(int),))
+        ))
 
-    fig = go.Figure(data=[current_trace, planned_trace])
+    # Add cumulative cost lines
+    current_traces.append(go.Scatter(
+        x=current_projection['Year'],
+        y=current_projection['Cumulative Cost (Discounted)'].round().astype(int),
+        name='Current - Cumulative Cost',
+        yaxis='y2',
+        legendgroup='Current',
+        hovertemplate='Year: %{x}<br>Cumulative Cost: $%{y:,.0f}<extra></extra>'
+    ))
 
+    planned_traces.append(go.Scatter(
+        x=planned_projection['Year'],
+        y=planned_projection['Cumulative Cost (Discounted)'].round().astype(int),
+        name='Planned - Cumulative Cost',
+        yaxis='y2',
+        legendgroup='Planned',
+        hovertemplate='Year: %{x}<br>Cumulative Cost: $%{y:,.0f}<extra></extra>'
+    ))
+
+    # Create figure with all traces
+    fig = go.Figure(data=current_traces + planned_traces)
+
+    # Update layout
     fig.update_layout(
         title="10-Year Vehicle Cost Projection Comparison (Discounted)",
-        xaxis_title="Cost Category",
-        yaxis_title="Total Cost over 10 Years ($)",
+        xaxis_title="Year",
+        yaxis_title="Annual Costs ($)",
+        yaxis2=dict(
+            title='Cumulative Cost ($)',
+            overlaying='y',
+            side='right',
+            range=[
+                0, max(current_projection['Cumulative Cost (Discounted)'].max(),
+                       planned_projection['Cumulative Cost (Discounted)'].max()) * 1.1
+            ]
+        ),
         barmode='group',
         height=600,
         legend=dict(
@@ -184,7 +220,8 @@ def update_graph():
             yanchor="bottom",
             y=1.02,
             xanchor="right",
-            x=1
+            x=1,
+            traceorder="grouped"
         )
     )
 
@@ -199,17 +236,19 @@ def update_graph():
     st.session_state['chart_key'] = st.session_state.get('chart_key', 0) + 1
 
     # Update the data table placeholder
-    table_placeholder.subheader("Projected Costs Table (10-Year Total, Discounted)")
+    table_placeholder.subheader("Projected Costs Table (Actual vs Discounted)")
 
     # Combine and format the DataFrames for display
     combined_df = pd.concat([current_projection.add_prefix('Current - '),
                              planned_projection.add_prefix('Planned - ')], axis=1)
     combined_df = combined_df.reset_index(drop=True)
+    combined_df.insert(0, 'Year', current_projection['Year'].values)
 
     # Format the DataFrame for display
     for column in combined_df.columns:
-        combined_df[column] = combined_df[column].round().astype(int).apply(
-            lambda x: f'${x:,}')
+        if column != 'Year':
+            combined_df[column] = combined_df[column].round().astype(int).apply(
+                lambda x: f'${x:,}')
 
     # Display the table with improved formatting
     table_placeholder.dataframe(
