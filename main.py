@@ -3,6 +3,8 @@ import pandas as pd
 import plotly.graph_objects as go
 import numpy as np
 from time import time
+import json
+import os
 
 # Set page configuration
 st.set_page_config(
@@ -69,9 +71,12 @@ def generate_cost_projection(inputs):
 
     return pd.DataFrame(data)
 
-# Initialize session state
-if 'inputs' not in st.session_state:
-    st.session_state.inputs = {
+# Functions for persistent storage
+def load_inputs():
+    if os.path.exists('user_inputs.json'):
+        with open('user_inputs.json', 'r') as f:
+            return json.load(f)
+    return {
         'initial_price': 30000,
         'current_age': 5,
         'kilometers_driven': 15000,
@@ -80,6 +85,14 @@ if 'inputs' not in st.session_state:
         'fuel_price': 1.5,
         'discount_rate': 0.10
     }
+
+def save_inputs(inputs):
+    with open('user_inputs.json', 'w') as f:
+        json.dump(inputs, f)
+
+# Initialize session state
+if 'inputs' not in st.session_state:
+    st.session_state.inputs = load_inputs()
 
 # Initialize chart_key in session state
 if 'chart_key' not in st.session_state:
@@ -154,6 +167,7 @@ with st.form(key='input_form'):
     submit_button = st.form_submit_button(label='Update Graph')
 
 if submit_button:
+    save_inputs(st.session_state.inputs)
     update_graph_debounced()
 
 # Generate initial graph
