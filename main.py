@@ -75,7 +75,8 @@ def generate_cost_projection(inputs):
         discounted_opportunity_cost = discount_cash_flow(
             opportunity_cost, inputs['discount_rate'], year)
 
-        total_discounted_cost = (discounted_fuel_cost + discounted_maintenance_cost +
+        total_discounted_cost = (discounted_fuel_cost +
+                                 discounted_maintenance_cost +
                                  discounted_opportunity_cost)
         cumulative_cost += total_discounted_cost
 
@@ -133,34 +134,52 @@ def update_graph():
     # Create stacked bar chart
     fig = go.Figure()
 
-    for cost_type in [
-            'Fuel Cost (Discounted)', 'Maintenance Cost (Discounted)',
-            'Opportunity Cost (Discounted)'
-    ]:
+    cost_types = {
+        'Fuel': ('Fuel Cost (Discounted)', 'Fuel Cost (Actual)'),
+        'Maintenance': ('Maintenance Cost (Discounted)', 'Maintenance Cost (Actual)'),
+        'Opportunity': ('Opportunity Cost (Discounted)', 'Opportunity Cost (Actual)')
+    }
+
+    for cost_name, (discounted_col, actual_col) in cost_types.items():
         fig.add_trace(
-            go.Bar(x=projection_data['Year'],
-                   y=projection_data[cost_type].round().astype(int),
-                   name=cost_type))
+            go.Bar(
+                x=projection_data['Year'],
+                y=projection_data[discounted_col].round().astype(int),
+                name=cost_name,
+                customdata=projection_data[actual_col].round().astype(int),
+                hovertemplate='Year: %{x}<br>%{data.name}: $%{y:,.0f} (Discounted)<br>Actual: $%{customdata:,.0f}<extra></extra>'
+            )
+        )
 
     # Add cumulative cost line
-    fig.add_trace(go.Scatter(
-        x=projection_data['Year'],
-        y=projection_data['Cumulative Cost (Discounted)'].round().astype(int),
-        name='Cumulative Cost',
-        yaxis='y2',
-        hovertemplate='Year: %{x}<br>Cumulative Cost: $%{y:,.0f}<extra></extra>'
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=projection_data['Year'],
+            y=projection_data['Cumulative Cost (Discounted)'].round().astype(int),
+            name='Cumulative Cost',
+            yaxis='y2',
+            hovertemplate='Year: %{x}<br>Cumulative Cost: $%{y:,.0f}<extra></extra>'
+        )
+    )
 
     fig.update_layout(
         title="10-Year Vehicle Cost Projection (Discounted)",
         xaxis_title="Year",
         yaxis_title="Annual Costs ($)",
-        yaxis2=dict(title='Cumulative Cost ($)', overlaying='y', side='right', 
-                    range=[0, projection_data['Cumulative Cost (Discounted)'].max() * 1.1]),
+        yaxis2=dict(
+            title='Cumulative Cost ($)',
+            overlaying='y',
+            side='right',
+            range=[
+                0, projection_data['Cumulative Cost (Discounted)'].max() * 1.1
+            ]),
         barmode='stack',
         height=600,
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-    )
+        legend=dict(orientation="h",
+                    yanchor="bottom",
+                    y=1.02,
+                    xanchor="right",
+                    x=1))
 
     # Update the graph placeholder with a dynamic key
     graph_placeholder.plotly_chart(
@@ -178,7 +197,8 @@ def update_graph():
     display_df = projection_data.copy()
     for column in display_df.columns:
         if column != 'Year':
-            display_df[column] = display_df[column].round().astype(int).apply(lambda x: f'${x:,}')
+            display_df[column] = display_df[column].round().astype(int).apply(
+                lambda x: f'${x:,}')
 
     # Display the table with improved formatting
     table_placeholder.dataframe(
@@ -206,7 +226,7 @@ with st.form(key='input_form'):
 
     with col1:
         st.session_state.inputs['initial_price'] = st.slider(
-            "Initial Purchase Price ($)",
+            "Initial Vehicle Price ($)",
             min_value=0,
             max_value=100000,
             value=st.session_state.inputs['initial_price'],
