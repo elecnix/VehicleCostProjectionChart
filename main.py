@@ -157,29 +157,44 @@ def update_graph():
     # Create stacked bar chart
     fig = go.Figure()
 
-    for vehicle, projection in [('Current', current_projection), ('Planned', planned_projection)]:
-        for cost_type in [
-                'Fuel Cost (Discounted)', 'Maintenance Cost (Discounted)',
-                'Opportunity Cost (Discounted)'
-        ]:
+    cost_types = ['Fuel Cost (Discounted)', 'Maintenance Cost (Discounted)', 'Opportunity Cost (Discounted)']
+    colors = {'Fuel': '#1f77b4', 'Maintenance': '#ff7f0e', 'Opportunity': '#2ca02c'}
+
+    for vehicle, projection, offset in [('Current', current_projection, -0.2), ('Planned', planned_projection, 0.2)]:
+        for cost_type in cost_types:
             fig.add_trace(
-                go.Bar(x=projection['Year'],
-                       y=projection[cost_type].round().astype(int),
-                       name=f"{vehicle} - {cost_type}",
-                       legendgroup=vehicle,
-                       legendgrouptitle_text=vehicle))
+                go.Bar(
+                    x=projection['Year'] + offset,
+                    y=projection[cost_type].round().astype(int),
+                    name=f"{vehicle} - {cost_type.split(' ')[0]}",
+                    legendgroup=vehicle,
+                    legendgrouptitle_text=vehicle,
+                    marker_color=colors[cost_type.split(' ')[0]],
+                    hoverinfo='text',
+                    hovertext=[
+                        f"{vehicle} Vehicle<br>" +
+                        f"Year: {year}<br>" +
+                        f"Fuel Cost: ${row['Fuel Cost (Discounted)']:,.0f}<br>" +
+                        f"Maintenance Cost: ${row['Maintenance Cost (Discounted)']:,.0f}<br>" +
+                        f"Opportunity Cost: ${row['Opportunity Cost (Discounted)']:,.0f}<br>" +
+                        f"Total Cost: ${row['Total Cost (Discounted)']:,.0f}"
+                        for year, row in projection.iterrows()
+                    ],
+                    width=0.4
+                )
+            )
 
         # Add cumulative cost line
         fig.add_trace(
             go.Scatter(
                 x=projection['Year'],
-                y=projection['Cumulative Cost (Discounted)'].round().astype(
-                    int),
+                y=projection['Cumulative Cost (Discounted)'].round().astype(int),
                 name=f'{vehicle} - Cumulative Cost',
                 yaxis='y2',
                 legendgroup=vehicle,
-                hovertemplate=
-                'Year: %{x}<br>Cumulative Cost: $%{y:,.0f}<extra></extra>'))
+                hovertemplate='Year: %{x}<br>Cumulative Cost: $%{y:,.0f}<extra></extra>'
+            )
+        )
 
     fig.update_layout(
         title="10-Year Vehicle Cost Projection Comparison (Discounted)",
@@ -192,20 +207,25 @@ def update_graph():
             range=[
                 0, max(current_projection['Cumulative Cost (Discounted)'].max(),
                        planned_projection['Cumulative Cost (Discounted)'].max()) * 1.1
-            ]),
+            ]
+        ),
         barmode='group',
         height=600,
-        legend=dict(orientation="h",
-                    yanchor="bottom",
-                    y=1.02,
-                    xanchor="right",
-                    x=1))
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        )
+    )
 
     # Update the graph placeholder with a dynamic key
     graph_placeholder.plotly_chart(
         fig,
         use_container_width=True,
-        key=f"cost_projection_chart_{st.session_state.get('chart_key', 0)}")
+        key=f"cost_projection_chart_{st.session_state.get('chart_key', 0)}"
+    )
 
     # Increment the chart key
     st.session_state['chart_key'] = st.session_state.get('chart_key', 0) + 1
@@ -227,7 +247,8 @@ def update_graph():
 
     # Display the table with improved formatting
     table_placeholder.dataframe(
-        combined_df.style.set_properties(**{'text-align': 'right'}))
+        combined_df.style.set_properties(**{'text-align': 'right'})
+    )
 
 # Debounce function
 def debounce(func):
