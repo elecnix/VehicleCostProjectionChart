@@ -160,11 +160,11 @@ def update_graph():
     cost_types = ['Fuel Cost (Discounted)', 'Maintenance Cost (Discounted)', 'Opportunity Cost (Discounted)']
     colors = {'Fuel': '#1f77b4', 'Maintenance': '#ff7f0e', 'Opportunity': '#2ca02c'}
 
-    for vehicle, projection, offset in [('Current', current_projection, -0.2), ('Planned', planned_projection, 0.2)]:
+    for vehicle, projection in [('Current', current_projection), ('Planned', planned_projection)]:
         for cost_type in cost_types:
             fig.add_trace(
                 go.Bar(
-                    x=projection['Year'] + offset,
+                    x=projection['Year'],
                     y=projection[cost_type].round().astype(int),
                     name=f"{vehicle} - {cost_type.split(' ')[0]}",
                     legendgroup=vehicle,
@@ -174,13 +174,9 @@ def update_graph():
                     hovertext=[
                         f"{vehicle} Vehicle<br>" +
                         f"Year: {year}<br>" +
-                        f"Fuel Cost: ${row['Fuel Cost (Discounted)']:,.0f}<br>" +
-                        f"Maintenance Cost: ${row['Maintenance Cost (Discounted)']:,.0f}<br>" +
-                        f"Opportunity Cost: ${row['Opportunity Cost (Discounted)']:,.0f}<br>" +
-                        f"Total Cost: ${row['Total Cost (Discounted)']:,.0f}"
+                        f"{cost_type.split(' ')[0]} Cost: ${row[cost_type]:,.0f}"
                         for year, row in projection.iterrows()
-                    ],
-                    width=0.4
+                    ]
                 )
             )
 
@@ -209,7 +205,7 @@ def update_graph():
                        planned_projection['Cumulative Cost (Discounted)'].max()) * 1.1
             ]
         ),
-        barmode='group',
+        barmode='stack',
         height=600,
         legend=dict(
             orientation="h",
