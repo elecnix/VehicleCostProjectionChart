@@ -81,7 +81,7 @@ def generate_cost_projection(inputs):
 
         data.append({
             'Year': year,
-            'Fuel Cost<br> (Actual)': fuel_cost,
+            'Fuel Cost (Actual)': fuel_cost,
             'Fuel Cost (Discounted)': discounted_fuel_cost,
             'Maintenance Cost (Actual)': maintenance_cost,
             'Maintenance Cost (Discounted)': discounted_maintenance_cost,
@@ -136,12 +136,12 @@ def update_graph():
     fig = go.Figure()
 
     for cost_type in [
-            'Fuel Cost - (Discounted)', 'Maintenance Cost - (Discounted)',
-            'Opportunity Cost - (Discounted)'
+            'Fuel Cost (Discounted)', 'Maintenance Cost (Discounted)',
+            'Opportunity Cost (Discounted)'
     ]:
         fig.add_trace(
             go.Bar(x=projection_data['Year'],
-                   y=projection_data[cost_type],
+                   y=projection_data[cost_type].round().astype(int),
                    name=cost_type))
 
     fig.update_layout(title="10-Year Vehicle Cost Projection (Discounted)",
@@ -171,18 +171,8 @@ def update_graph():
     display_df = projection_data.copy()
     for column in display_df.columns:
         if column != 'Year':
-            display_df[column] = display_df[column].apply(
-                lambda x: f"${x:.2f}")
-
-    # Reorder columns to group actual and discounted values
-    column_order = [
-        'Year', 'Fuel Cost - (Actual)', 'Fuel Cost - (Discounted)',
-        'Maintenance Cost - (Actual)', 'Maintenance Cost - (Discounted)',
-        'Opportunity Cost - (Actual)', 'Opportunity Cost - (Discounted)',
-        'Market Value - (Nominal)', 'Market Value - (Discounted)'
-    ]
-
-    display_df = display_df[column_order]
+            display_df[column] = display_df[column].round().astype(int).apply(
+                lambda x: f"${x:,}")
 
     # Display the table with improved formatting
     table_placeholder.dataframe(
