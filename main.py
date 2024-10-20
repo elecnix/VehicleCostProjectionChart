@@ -86,6 +86,10 @@ if 'inputs' not in st.session_state:
         'discount_rate': 0.10
     }
 
+# Create placeholders for graph and table
+graph_placeholder = st.empty()
+table_placeholder = st.empty()
+
 # Function to update graph
 def update_graph():
     projection_data = generate_cost_projection(st.session_state.inputs)
@@ -109,28 +113,32 @@ def update_graph():
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     )
 
-    # Display the chart
-    st.plotly_chart(fig, use_container_width=True)
+    # Update the graph placeholder
+    graph_placeholder.plotly_chart(fig, use_container_width=True)
 
-    # Display the data table
-    st.subheader("Projected Costs Table")
-    st.dataframe(projection_data.style.format("{:.2f}"))
+    # Update the data table placeholder
+    table_placeholder.subheader("Projected Costs Table")
+    table_placeholder.dataframe(projection_data.style.format("{:.2f}"))
 
-# Input fields with callbacks
+# Input fields without callbacks
 st.header("Input Variables")
 
 col1, col2 = st.columns(2)
 
 with col1:
-    st.session_state.inputs['initial_price'] = st.number_input("Initial Purchase Price ($)", min_value=0, value=st.session_state.inputs['initial_price'], step=1000, on_change=update_graph)
-    st.session_state.inputs['current_age'] = st.number_input("Current Vehicle Age (years)", min_value=0, max_value=30, value=st.session_state.inputs['current_age'], step=1, on_change=update_graph)
-    st.session_state.inputs['kilometers_driven'] = st.number_input("Kilometers Driven Annually", min_value=0, value=st.session_state.inputs['kilometers_driven'], step=1000, on_change=update_graph)
-    st.session_state.inputs['fuel_consumption'] = st.number_input("Average Fuel Consumption (L/100km)", min_value=0.0, value=st.session_state.inputs['fuel_consumption'], step=0.1, on_change=update_graph)
+    st.session_state.inputs['initial_price'] = st.number_input("Initial Purchase Price ($)", min_value=0, value=st.session_state.inputs['initial_price'], step=1000)
+    st.session_state.inputs['current_age'] = st.number_input("Current Vehicle Age (years)", min_value=0, max_value=30, value=st.session_state.inputs['current_age'], step=1)
+    st.session_state.inputs['kilometers_driven'] = st.number_input("Kilometers Driven Annually", min_value=0, value=st.session_state.inputs['kilometers_driven'], step=1000)
+    st.session_state.inputs['fuel_consumption'] = st.number_input("Average Fuel Consumption (L/100km)", min_value=0.0, value=st.session_state.inputs['fuel_consumption'], step=0.1)
 
 with col2:
-    st.session_state.inputs['current_market_value'] = st.number_input("Current Market Value ($)", min_value=0, value=st.session_state.inputs['current_market_value'], step=1000, on_change=update_graph)
-    st.session_state.inputs['fuel_price'] = st.number_input("Fuel Price ($/L)", min_value=0.0, value=st.session_state.inputs['fuel_price'], step=0.1, on_change=update_graph)
-    st.session_state.inputs['discount_rate'] = st.number_input("Discount Rate (%)", min_value=0.0, max_value=100.0, value=st.session_state.inputs['discount_rate'] * 100, step=0.1, on_change=update_graph) / 100
+    st.session_state.inputs['current_market_value'] = st.number_input("Current Market Value ($)", min_value=0, value=st.session_state.inputs['current_market_value'], step=1000)
+    st.session_state.inputs['fuel_price'] = st.number_input("Fuel Price ($/L)", min_value=0.0, value=st.session_state.inputs['fuel_price'], step=0.1)
+    st.session_state.inputs['discount_rate'] = st.number_input("Discount Rate (%)", min_value=0.0, max_value=100.0, value=st.session_state.inputs['discount_rate'] * 100, step=0.1) / 100
+
+# Button to update graph
+if st.button("Update Graph"):
+    update_graph()
 
 # Generate initial graph
 update_graph()
