@@ -80,15 +80,24 @@ def generate_cost_projection(inputs):
             opportunity_cost, inputs['discount_rate'], year)
 
         data.append({
-            'Year': year,
-            'Fuel Cost (Actual)': fuel_cost,
-            'Fuel Cost (Discounted)': discounted_fuel_cost,
-            'Maintenance Cost (Actual)': maintenance_cost,
-            'Maintenance Cost (Discounted)': discounted_maintenance_cost,
-            'Opportunity Cost (Actual)': opportunity_cost,
-            'Opportunity Cost (Discounted)': discounted_opportunity_cost,
-            'Market Value (Nominal)': market_value,
-            'Market Value (Discounted)': discounted_market_value
+            'Year':
+            year,
+            'Market Value (Nominal)':
+            market_value,
+            'Market Value (Discounted)':
+            discounted_market_value,
+            'Fuel Cost (Actual)':
+            fuel_cost,
+            'Fuel Cost (Discounted)':
+            discounted_fuel_cost,
+            'Maintenance Cost (Actual)':
+            maintenance_cost,
+            'Maintenance Cost (Discounted)':
+            discounted_maintenance_cost,
+            'Opportunity Cost (Actual)':
+            opportunity_cost,
+            'Opportunity Cost (Discounted)':
+            discounted_opportunity_cost,
         })
 
     return pd.DataFrame(data)
@@ -171,8 +180,7 @@ def update_graph():
     display_df = projection_data.copy()
     for column in display_df.columns:
         if column != 'Year':
-            display_df[column] = display_df[column].round().astype(int).apply(
-                lambda x: f"${x:,}")
+            display_df[column] = display_df[column].apply(lambda x: f'${x:,.0f}')
 
     # Display the table with improved formatting
     table_placeholder.dataframe(
