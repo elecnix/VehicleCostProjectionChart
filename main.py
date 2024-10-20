@@ -165,7 +165,6 @@ def update_graph():
                     y=projection[cost_type].round().astype(int),
                     name=f'{vehicle} - {cost_type.split(" ")[0]}',
                     legendgroup=vehicle,
-                    stack=vehicle,
                     hovertemplate='Year: %{x}<br>' + f'{cost_type.split(" ")[0]}: $' + '%{y:,.0f}<br>Total: $%{customdata[0]:,.0f}<extra></extra>',
                     customdata=np.column_stack((projection['Total Cost (Discounted)'].round().astype(int),))
                 )
@@ -196,8 +195,7 @@ def update_graph():
                        planned_projection['Cumulative Cost (Discounted)'].max()) * 1.1
             ]
         ),
-        barmode='group',
-        bargroupgap=0.1,
+        barmode='stack',  # Updated to 'stack'
         height=600,
         legend=dict(
             orientation="h",
