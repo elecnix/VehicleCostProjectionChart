@@ -1,0 +1,112 @@
+Vehicle Cost Projection Stacked Bar Chart Specification
+
+Purpose
+This application generates a stacked bar chart showing the projected costs of owning a single vehicle over the next 10 years. The chart will help assess when the annual costs of keeping the vehicle are high enough to consider replacing it with a new electric vehicle. The costs considered are:
+
+Fuel (gasoline or electricity)
+Maintenance and repair costs (increase with vehicle age)
+Opportunity cost (the cost of keeping the vehicle instead of investing its market value)
+Each year in the future will show these three costs, discounted to present value.
+
+Variables Provided by User
+The user will input the following data:
+
+Initial Purchase Price (P): Amount paid for the vehicle.
+Current Vehicle Age (A): The number of years the vehicle has been in use.
+Kilometers Driven Annually (K): How many kilometers the user drives per year.
+Average Fuel Consumption (F): Liters per 100 kilometers (L/100km).
+Current Market Value (M): Current value of the vehicle (optional; default is calculated based on depreciation).
+Maintenance Cost by Vehicle Age (MC): Function or array of maintenance costs per year of vehicle age (e.g., $500 for a 5-year-old vehicle, $1000 for a 10-year-old vehicle).
+Fuel Price (FP): Price per liter of gasoline or electricity cost per kilometer for an electric vehicle.
+Discount Rate (r): Opportunity cost of money if it were invested (typically 10%).
+Calculations
+
+1. Fuel Costs (FC)
+
+Annual fuel cost based on kilometers driven and fuel consumption:
+
+    FC = (K * F / 100) * FP
+
+Where:
+
+K = kilometers driven annually
+F = fuel consumption (liters per 100 km)
+FP = fuel price (per liter of gas or cost of electricity)
+
+2. Maintenance Costs (MC)
+
+Maintenance costs depend on the vehicle's age. The user provides a function or list that defines maintenance costs for each year of vehicle age. The program will calculate the cost for each future year by adding to the current vehicle age:
+
+    MC = MaintenanceCostByAge[A + t]
+
+Where:
+
+A = current vehicle age
+t = year offset from current (0 to 10)
+
+3. Opportunity Cost (OC)
+
+The opportunity cost is the foregone earnings if the user were to invest the vehicle's current market value instead of keeping it. Assume a 10% return on investment annually:
+
+    OC = M * r
+
+Where:
+
+M = current market value of the vehicle (depreciates annually)
+r = discount rate (opportunity cost, typically 10%)
+
+If the current market value is not provided by the user, it can be estimated using a straight-line depreciation method or a custom depreciation function.
+
+4. Discounted Cash Flow (DCF)
+
+Each year's costs (fuel, maintenance, opportunity) must be discounted to their present value to account for the time value of money:
+
+    DCF(t) = C / (1 + r)^t
+
+Where:
+
+C = cost in year t (fuel, maintenance, opportunity cost)
+r = discount rate (10%)
+t = number of years from now
+
+The total discounted cost for each year is the sum of the discounted fuel, maintenance, and opportunity costs:
+
+    TotalCost(t) = DCF(FC) + DCF(MC) + DCF(OC)
+
+Output: Stacked Bar Chart
+
+The program should generate a stacked bar chart with the following:
+
+X-axis: Years (0 to 10)
+Y-axis: Discounted total costs in dollars (current value)
+Bars: Each bar represents one year and is divided into three segments:
+
+Fuel Costs (discounted)
+Maintenance Costs (discounted)
+Opportunity Cost (discounted)
+
+Example Chart Layout (ASCII)
+
+Year 1:  |||||||||||
+Year 2:  ||||||||||||||
+Year 3:  |||||||||||||||||
+Year 4:  |||||||||||||||||||||
+
+Each year shows how the total ownership costs evolve, allowing the user to see when future costs become large enough to justify switching to a new vehicle.
+
+Assumptions
+The user will sell their current vehicle to buy a new one (Tesla Y), so opportunity costs are based on market value.
+Insurance costs are excluded in this prototype.
+Depreciation is modeled as a linear function unless the user provides a custom depreciation model.
+Formula Summary (ASCII Text)
+Fuel cost per year:
+    FC = (K * F / 100) * FP
+Maintenance cost per year (depends on vehicle age):
+    MC = MaintenanceCostByAge[A + t]
+Opportunity cost per year:
+    OC = M * r
+Discounted costs for each year:
+    DCF(t) = C / (1 + r)^t
+Total cost for each year:
+    TotalCost(t) = DCF(FC) + DCF(MC) + DCF(OC)
+This spec should allow a developer to build the first prototype of the cost analysis chart. 
