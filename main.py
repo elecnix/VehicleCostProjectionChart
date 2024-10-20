@@ -154,34 +154,52 @@ def update_graph():
     current_projection = generate_cost_projection(st.session_state.inputs['current'])
     planned_projection = generate_cost_projection(st.session_state.inputs['planned'])
 
-    # Create bar chart
-    fig = go.Figure()
+    # Create separate lists of traces for each vehicle
+    current_traces = []
+    planned_traces = []
 
-    for vehicle, projection in [('Current', current_projection), ('Planned', planned_projection)]:
-        for cost_type in ['Fuel Cost (Discounted)', 'Maintenance Cost (Discounted)', 'Opportunity Cost (Discounted)']:
-            fig.add_trace(
-                go.Bar(
-                    x=projection['Year'],
-                    y=projection[cost_type].round().astype(int),
-                    name=f'{vehicle} - {cost_type.split(" ")[0]}',
-                    legendgroup=vehicle,
-                    hovertemplate='Year: %{x}<br>' + f'{cost_type.split(" ")[0]}: $' + '%{y:,.0f}<br>Total: $%{customdata[0]:,.0f}<extra></extra>',
-                    customdata=np.column_stack((projection['Total Cost (Discounted)'].round().astype(int),))
-                )
-            )
+    for cost_type in ['Fuel Cost (Discounted)', 'Maintenance Cost (Discounted)', 'Opportunity Cost (Discounted)']:
+        current_traces.append(go.Bar(
+            name=f'Current - {cost_type.split(" ")[0]}',
+            x=current_projection['Year'],
+            y=current_projection[cost_type].round().astype(int),
+            legendgroup='Current',
+            hovertemplate='Year: %{x}<br>' + f'{cost_type.split(" ")[0]}: $' + '%{y:,.0f}<br>Total: $%{customdata[0]:,.0f}<extra></extra>',
+            customdata=np.column_stack((current_projection['Total Cost (Discounted)'].round().astype(int),))
+        ))
+        
+        planned_traces.append(go.Bar(
+            name=f'Planned - {cost_type.split(" ")[0]}',
+            x=planned_projection['Year'],
+            y=planned_projection[cost_type].round().astype(int),
+            legendgroup='Planned',
+            hovertemplate='Year: %{x}<br>' + f'{cost_type.split(" ")[0]}: $' + '%{y:,.0f}<br>Total: $%{customdata[0]:,.0f}<extra></extra>',
+            customdata=np.column_stack((planned_projection['Total Cost (Discounted)'].round().astype(int),))
+        ))
 
-        # Add cumulative cost line
-        fig.add_trace(
-            go.Scatter(
-                x=projection['Year'],
-                y=projection['Cumulative Cost (Discounted)'].round().astype(int),
-                name=f'{vehicle} - Cumulative Cost',
-                yaxis='y2',
-                legendgroup=vehicle,
-                hovertemplate='Year: %{x}<br>Cumulative Cost: $%{y:,.0f}<extra></extra>'
-            )
-        )
+    # Add cumulative cost lines
+    current_traces.append(go.Scatter(
+        x=current_projection['Year'],
+        y=current_projection['Cumulative Cost (Discounted)'].round().astype(int),
+        name='Current - Cumulative Cost',
+        yaxis='y2',
+        legendgroup='Current',
+        hovertemplate='Year: %{x}<br>Cumulative Cost: $%{y:,.0f}<extra></extra>'
+    ))
 
+    planned_traces.append(go.Scatter(
+        x=planned_projection['Year'],
+        y=planned_projection['Cumulative Cost (Discounted)'].round().astype(int),
+        name='Planned - Cumulative Cost',
+        yaxis='y2',
+        legendgroup='Planned',
+        hovertemplate='Year: %{x}<br>Cumulative Cost: $%{y:,.0f}<extra></extra>'
+    ))
+
+    # Create figure with all traces
+    fig = go.Figure(data=current_traces + planned_traces)
+
+    # Update layout
     fig.update_layout(
         title="10-Year Vehicle Cost Projection Comparison (Discounted)",
         xaxis_title="Year",
@@ -195,7 +213,7 @@ def update_graph():
                        planned_projection['Cumulative Cost (Discounted)'].max()) * 1.1
             ]
         ),
-        barmode='stack',  # Updated to 'stack'
+        barmode='group',
         height=600,
         legend=dict(
             orientation="h",
