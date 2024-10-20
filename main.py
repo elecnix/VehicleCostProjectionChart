@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 import numpy as np
+from time import time
 
 # Set page configuration
 st.set_page_config(
@@ -18,13 +19,7 @@ st.markdown("""
         padding-top: 2rem;
         padding-bottom: 2rem;
     }
-    .stTextInput > div > div > input {
-        font-size: 16px;
-    }
-    .stSelectbox > div > div > select {
-        font-size: 16px;
-    }
-    .stNumberInput > div > div > input {
+    .stSlider > div > div > div > div {
         font-size: 16px;
     }
 </style>
@@ -127,25 +122,39 @@ def update_graph():
     table_placeholder.subheader("Projected Costs Table")
     table_placeholder.dataframe(projection_data.style.format("{:.2f}"))
 
-# Input fields without callbacks
-st.header("Input Variables")
+# Debounce function
+def debounce(func):
+    last_run = 0
+    def debounced(*args, **kwargs):
+        nonlocal last_run
+        if time() - last_run > 0.5:  # 500ms debounce time
+            func(*args, **kwargs)
+            last_run = time()
+    return debounced
 
-col1, col2 = st.columns(2)
+# Wrap update_graph with debounce
+update_graph_debounced = debounce(update_graph)
 
-with col1:
-    st.session_state.inputs['initial_price'] = st.number_input("Initial Purchase Price ($)", min_value=0, value=st.session_state.inputs['initial_price'], step=1000)
-    st.session_state.inputs['current_age'] = st.number_input("Current Vehicle Age (years)", min_value=0, max_value=30, value=st.session_state.inputs['current_age'], step=1)
-    st.session_state.inputs['kilometers_driven'] = st.number_input("Kilometers Driven Annually", min_value=0, value=st.session_state.inputs['kilometers_driven'], step=1000)
-    st.session_state.inputs['fuel_consumption'] = st.number_input("Average Fuel Consumption (L/100km)", min_value=0.0, value=st.session_state.inputs['fuel_consumption'], step=0.1)
+# Use st.form to wrap all inputs
+with st.form(key='input_form'):
+    st.header("Input Variables")
+    col1, col2 = st.columns(2)
 
-with col2:
-    st.session_state.inputs['current_market_value'] = st.number_input("Current Market Value ($)", min_value=0, value=st.session_state.inputs['current_market_value'], step=1000)
-    st.session_state.inputs['fuel_price'] = st.number_input("Fuel Price ($/L)", min_value=0.0, value=st.session_state.inputs['fuel_price'], step=0.1)
-    st.session_state.inputs['discount_rate'] = st.number_input("Discount Rate (%)", min_value=0.0, max_value=100.0, value=st.session_state.inputs['discount_rate'] * 100, step=0.1) / 100
+    with col1:
+        st.session_state.inputs['initial_price'] = st.slider("Initial Purchase Price ($)", min_value=0, max_value=100000, value=st.session_state.inputs['initial_price'], step=1000)
+        st.session_state.inputs['current_age'] = st.slider("Current Vehicle Age (years)", min_value=0, max_value=30, value=st.session_state.inputs['current_age'], step=1)
+        st.session_state.inputs['kilometers_driven'] = st.slider("Kilometers Driven Annually", min_value=0, max_value=50000, value=st.session_state.inputs['kilometers_driven'], step=1000)
+        st.session_state.inputs['fuel_consumption'] = st.slider("Average Fuel Consumption (L/100km)", min_value=0.0, max_value=20.0, value=st.session_state.inputs['fuel_consumption'], step=0.1)
 
-# Button to update graph
-if st.button("Update Graph"):
-    update_graph()
+    with col2:
+        st.session_state.inputs['current_market_value'] = st.slider("Current Market Value ($)", min_value=0, max_value=100000, value=st.session_state.inputs['current_market_value'], step=1000)
+        st.session_state.inputs['fuel_price'] = st.slider("Fuel Price ($/L)", min_value=0.0, max_value=5.0, value=st.session_state.inputs['fuel_price'], step=0.1)
+        st.session_state.inputs['discount_rate'] = st.slider("Discount Rate (%)", min_value=0.0, max_value=20.0, value=st.session_state.inputs['discount_rate'] * 100, step=0.1) / 100
+
+    submit_button = st.form_submit_button(label='Update Graph')
+
+if submit_button:
+    update_graph_debounced()
 
 # Generate initial graph
 update_graph()
