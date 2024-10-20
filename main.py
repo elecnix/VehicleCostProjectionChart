@@ -29,7 +29,7 @@ st.markdown("""
 # Title and description
 st.title("Vehicle Cost Projection Comparison")
 st.write(
-    "This application generates a stacked bar chart showing the projected costs of owning two vehicles (Current and Planned) over the next 10 years."
+    "This application generates a bar chart showing the projected costs of owning two vehicles (Current and Planned) over the next 10 years."
 )
 
 # Functions for calculations
@@ -154,31 +154,30 @@ def update_graph():
     current_projection = generate_cost_projection(st.session_state.inputs['current'])
     planned_projection = generate_cost_projection(st.session_state.inputs['planned'])
 
-    # Create stacked bar chart
+    # Create bar chart
     fig = go.Figure()
 
-    cost_types = ['Fuel Cost (Discounted)', 'Maintenance Cost (Discounted)', 'Opportunity Cost (Discounted)']
-    colors = {'Fuel': '#1f77b4', 'Maintenance': '#ff7f0e', 'Opportunity': '#2ca02c'}
-
     for vehicle, projection in [('Current', current_projection), ('Planned', planned_projection)]:
-        for cost_type in cost_types:
-            fig.add_trace(
-                go.Bar(
-                    x=projection['Year'],
-                    y=projection[cost_type].round().astype(int),
-                    name=f"{vehicle} - {cost_type.split(' ')[0]}",
-                    legendgroup=vehicle,
-                    legendgrouptitle_text=vehicle,
-                    marker_color=colors[cost_type.split(' ')[0]],
-                    hoverinfo='text',
-                    hovertext=[
-                        f"{vehicle} Vehicle<br>" +
-                        f"Year: {year}<br>" +
-                        f"{cost_type.split(' ')[0]} Cost: ${row[cost_type]:,.0f}"
-                        for year, row in projection.iterrows()
-                    ]
-                )
+        fig.add_trace(
+            go.Bar(
+                x=projection['Year'],
+                y=projection['Total Cost (Discounted)'].round().astype(int),
+                name=f'{vehicle} Vehicle',
+                legendgroup=vehicle,
+                hovertemplate=(
+                    'Year: %{x}<br>'
+                    'Total Cost: $%{y:,.0f}<br>'
+                    'Fuel Cost: ${customdata[0]:,.0f}<br>'
+                    'Maintenance Cost: ${customdata[1]:,.0f}<br>'
+                    'Opportunity Cost: ${customdata[2]:,.0f}<extra></extra>'
+                ),
+                customdata=np.column_stack((
+                    projection['Fuel Cost (Discounted)'].round().astype(int),
+                    projection['Maintenance Cost (Discounted)'].round().astype(int),
+                    projection['Opportunity Cost (Discounted)'].round().astype(int)
+                ))
             )
+        )
 
         # Add cumulative cost line
         fig.add_trace(
@@ -205,7 +204,7 @@ def update_graph():
                        planned_projection['Cumulative Cost (Discounted)'].max()) * 1.1
             ]
         ),
-        barmode='stack',
+        barmode='group',
         height=600,
         legend=dict(
             orientation="h",
