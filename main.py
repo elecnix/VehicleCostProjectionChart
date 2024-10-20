@@ -113,8 +113,8 @@ def update_graph():
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     )
 
-    # Update the graph placeholder
-    graph_placeholder.plotly_chart(fig, use_container_width=True)
+    # Update the graph placeholder with a unique key
+    graph_placeholder.plotly_chart(fig, use_container_width=True, key="cost_projection_chart")
 
     # Update the data table placeholder
     table_placeholder.subheader("Projected Costs Table")
